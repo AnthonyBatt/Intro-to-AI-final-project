@@ -157,7 +157,7 @@ while not battle.get_winner():
 
     # TODO implement a should_switch function
     
-    pick_move(pikachu, starmie)
+    action_selection(pikachu, starmie)
     if not starmie.nv_status:
         battle.turn(t1_turn=['move', 'thunder-wave'], t2_turn=['move', 'bullet-seed'])
     # TODO implement a calc probable damage function
