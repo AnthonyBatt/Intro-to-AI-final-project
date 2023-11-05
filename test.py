@@ -92,6 +92,7 @@ def postmod_calc(move, atk, opp):
     
     return mod
 
+# TODO may need to implement edge case checks for weird move
 # returns a best and worst case estimate of damage done to opponent
 def dmg_calc_atk(atk, opp, move, powmod):
     # step 1: calc level effectiveness
@@ -99,23 +100,19 @@ def dmg_calc_atk(atk, opp, move, powmod):
     # step 2: get move power and modifiers of said power
     #   these include weather, burn, stab, and type effectiveness
     s2 = move.power
-    # TODO implement check for atk vs def or spa vs spd
     # step 3: calc stat matchup
-    s3 = (atk.stats_actual[3]*2 / opp.stats_actual[4])      # need to *2 here cuz div by 2 in pokemon creation
-    # step 4: return min and max
-    minn = ((s1*s2*s3)/50 + 2) * postmod_calc(move, atk, opp) * 0.85
-    maxx = ((s1*s2*s3)/50 + 2) * postmod_calc(move, atk, opp) * 1.00
+    if move.category == 2:
+        s3 = (atk.stats_actual[1]*2 / opp.stats_actual[2])      # need to *2 here cuz div by 2 in pokemon creation
+    elif move.category == 3:
+        s3 = (atk.stats_actual[3]*2 / opp.stats_actual[4])      # need to *2 here cuz div by 2 in pokemon creation
+    # step 4: return base damage, let receiving function d multipliers
+    base = ((s1*s2*s3)/50 + 2) * postmod_calc(move, atk, opp) + 2
 
-    return minn, maxx
+    #        worst      poor    pessimist   avg      optimist    good      best
+    return [base*.85, base*.88, base*.91, base*.925, base*.94, base*.97, base*1.0]
 
-# returns a best and worst case estimate of damage done to self
-def dmg_calc_def(me, opp, move, powmod):
-    pass
-
-while not battle.get_winner():
-    battle_txt = battle.get_all_text()
-
-    # TODO implement a should_switch function
+def action_selection(poke1, poke2):
+    '''
     if not starmie.nv_status:
         battle.turn(t1_turn=['move', 'thunder-wave'], t2_turn=['move', 'bullet-seed'])
     # TODO implement a calc probable damage function
@@ -123,10 +120,57 @@ while not battle.get_winner():
         battle.turn(t1_turn=['move', 'quick-attack'], t2_turn=['move', 'bullet-seed'])
     # TODO implement a pick attack move function based on power and type effectiveness
     else:
-        battle.turn(t1_turn=['move', 'thunderbolt'], t2_turn=['move', 'bullet-seed'])
+        battle.turn(t1_turn=['move', 'quick-attack'], t2_turn=['move', 'bullet-seed'])
+    '''
+    pass
+
+    # have two different functions with different logic based on if opp or us is quicker
+
+    # check who is quicker
+    # if opp quicker (or speed tie) check if opp can oneshot
+    #   if yes see if there is a good swap
+    #       if no good swap check if we have a priority move
+    #           if yes use it
+    #           else make a judgment call on which pokemon to sack
+    #       else make the best swap
+    #   else evaluate matchup and check if there is a better one via swapping
+    #       if there is a better match up switch and go for it
+    #   else (meaning there is no better swap)
+    #       MOVE SELECTION
+    #       if they can't really hurt us, set up if possible
+    #       else if we can oneshot do so
+    #       else if we can paralyze opp do so (slow them down, possible prevent another attack, etc.)
+    #       else if we can two shot them just attack
+    #       else if they have a tanky pokemon, poison/toxic them if we can
+    #       else if they are a phys attacker, burn them if we can
+    #       else check for if there is a less valuable/better matchup pokemon to throw out right now
+    #       else see if we have any moves that have secondary effects which would produce something good
+    #       else just attack with our best move
+    # else (we are faster)
+    #   enter MOVE SELECTION
+    #   check for similar stuff above, like can they one shot us, do we have a better swap, etc.
+
+    #return action, obj
+
+while not battle.get_winner():
+    battle_txt = battle.get_all_text()
+
+    # TODO implement a should_switch function
+    
+    pick_move(pikachu, starmie)
+    if not starmie.nv_status:
+        battle.turn(t1_turn=['move', 'thunder-wave'], t2_turn=['move', 'bullet-seed'])
+    # TODO implement a calc probable damage function
+    elif get_cur_hp(starmie) < 16.001:
+        battle.turn(t1_turn=['move', 'quick-attack'], t2_turn=['move', 'bullet-seed'])
+    # TODO implement a pick attack move function based on power and type effectiveness
+    else:
+        battle.turn(t1_turn=['move', 'quick-attack'], t2_turn=['move', 'bullet-seed'])
+
 
     #print(effectiveness(pikachu.moves[2], starmie))
-    dmgMin, dmgMax = dmg_calc_atk(pikachu, starmie, pikachu.moves[0], 1) 
+    base = dmg_calc_atk(pikachu, starmie, pikachu.moves[1], 1) 
+    dmgMin, dmgMax = base[0], base[6]
     print(f"Range: ({dmgMin}, {dmgMax})")
 
     for i in range(mark, len(battle_txt)):

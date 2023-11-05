@@ -14,3 +14,8 @@ to run on student machines first type this command:
 11/4:
 	- put data files in drive
 	- began implementing damage calc function (still have bugs to iron out)
+
+11/5:
+	- finished implementing damage calc (bugs have been ironed out, still have edge cases though)
+	- pseudocoded out the logic for action selection and move selection
+	- began generalizing functionality
