@@ -1,8 +1,32 @@
 import poke_battle_sim as pb
+import csv
 
-# returns the given pokemon's hp as a percentage of their max health
-def get_cur_hp(pokemon):
-    return 100*int(pokemon.cur_hp)/pokemon.stats_actual[0]
+# process type chart into a dictionary
+eff_dict = dict()
+type_enum = {
+    "normal"    : 0,
+    "fire"      : 1,
+    "water"     : 2,
+    "electric"  : 3,
+    "grass"     : 4,
+    "ice"       : 5,
+    "fighting"  : 6,
+    "poison"    : 7,
+    "ground"    : 8,
+    "flying"    : 9,
+    "psychic"   : 10,
+    "bug"       : 11,
+    "rock"      : 12,
+    "ghost"     : 13,
+    "dragon"    : 14,
+    "dark"      : 15,
+    "steel"     : 16
+}
+
+for r in csv.reader(open('data/type_effectiveness.csv')):
+    eff_dict[r[0]] = r[1:]
+
+#for k, v in eff_dict.items(): print(k, v)
 
 # Pokemon number 1 on team number 1
 pikachu = pb.Pokemon(
@@ -34,7 +58,7 @@ battle = pb.Battle(ash, misty)
 battle.start()
 
 mark = 0
-flagmat = 0
+flagmat = 0     # formattig flag
 
 print(f"Starmie MAX HP: {starmie.cur_hp}")
 print(f"Pikachu MAX HP: {pikachu.cur_hp}\n")
@@ -42,6 +66,51 @@ print(f"Pikachu MAX HP: {pikachu.cur_hp}\n")
 # TODO implement the opponent's pokemon's stat guessing/calculating function
 #   do it for each of their pokemon and do something like scan the output text for 'sent out' to look for
 #   new pokemon to keep track of
+
+# returns the given pokemon's hp as a percentage of their max health
+def get_cur_hp(pokemon):
+    return 100*int(pokemon.cur_hp)/pokemon.stats_actual[0]
+
+# TODO calc supereffective
+def effectiveness(move, target):
+    eff_list = eff_dict[move.type]
+    ret = 1
+
+    for t in target.types:
+        ret *= float(eff_list[type_enum[t]])
+
+    return ret
+
+# TODO need to make a separate calculator for other attributes (i.e. burn and weather)
+def postmod_calc(move, atk, opp):
+    mod = 1
+    # STAB
+    if move.type in atk.types:
+        mod *= 1.5
+    # type chart
+    mod *= effectiveness(move, opp)
+    
+    return mod
+
+# returns a best and worst case estimate of damage done to opponent
+def dmg_calc_atk(atk, opp, move, powmod):
+    # step 1: calc level effectiveness
+    s1 = (2*atk.level)/5 + 2
+    # step 2: get move power and modifiers of said power
+    #   these include weather, burn, stab, and type effectiveness
+    s2 = move.power
+    # TODO implement check for atk vs def or spa vs spd
+    # step 3: calc stat matchup
+    s3 = (atk.stats_actual[3]*2 / opp.stats_actual[4])      # need to *2 here cuz div by 2 in pokemon creation
+    # step 4: return min and max
+    minn = ((s1*s2*s3)/50 + 2) * postmod_calc(move, atk, opp) * 0.85
+    maxx = ((s1*s2*s3)/50 + 2) * postmod_calc(move, atk, opp) * 1.00
+
+    return minn, maxx
+
+# returns a best and worst case estimate of damage done to self
+def dmg_calc_def(me, opp, move, powmod):
+    pass
 
 while not battle.get_winner():
     battle_txt = battle.get_all_text()
@@ -54,8 +123,12 @@ while not battle.get_winner():
         battle.turn(t1_turn=['move', 'quick-attack'], t2_turn=['move', 'bullet-seed'])
     # TODO implement a pick attack move function based on power and type effectiveness
     else:
-        battle.turn(t1_turn=['move', 'iron-tail'], t2_turn=['move', 'bullet-seed'])
-        
+        battle.turn(t1_turn=['move', 'thunderbolt'], t2_turn=['move', 'bullet-seed'])
+
+    #print(effectiveness(pikachu.moves[2], starmie))
+    dmgMin, dmgMax = dmg_calc_atk(pikachu, starmie, pikachu.moves[0], 1) 
+    print(f"Range: ({dmgMin}, {dmgMax})")
+
     for i in range(mark, len(battle_txt)):
         if "Turn" in battle_txt[i]:
             flagmat = 1
@@ -67,7 +140,7 @@ while not battle.get_winner():
             print(battle_txt[i])
         mark = i + 1
             
-    print(starmie.stats_actual[5])
+    #print(starmie.stats_actual[5])
     print(f"\nStarmie HP: {starmie.cur_hp} ({get_cur_hp(starmie):.2f}%)")
     print(f"Pikachu HP: {pikachu.cur_hp} ({get_cur_hp(pikachu):.2f}%)")
 
