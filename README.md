@@ -19,3 +19,8 @@ to run on student machines first type this command:
 	- finished implementing damage calc (bugs have been ironed out, still have edge cases though)
 	- pseudocoded out the logic for action selection and move selection
 	- began generalizing functionality
+
+11/6:
+	- made the first 2 gym leader trainers
+	- further generalized the battle demo, less values are hard coded now
+	- advanced the AI to pick the move that will do the most damage to opposing pokemon
