@@ -39,7 +39,7 @@ pikachu = pb.Pokemon(
         "thunder-wave"
     ],
     gender="male",                                  # its gender
-    stats_actual=[211, 73, 96, 68, 116, 216]        # its stats
+    stats_actual=[311, 73, 96, 68, 116, 216]        # its stats
 )
 
 ash = pb.Trainer('Ash', [pikachu])
@@ -49,10 +49,18 @@ starmie = pb.Pokemon(
     level=100, 
     moves=["bullet-seed"], 
     gender="male", 
-    stats_actual=[231, 67, 134, 83, 166, 300]
+    stats_actual=[144, 67, 134, 83, 166, 300]
 )
 
-misty = pb.Trainer('Misty', [starmie])
+ivysaur = pb.Pokemon(
+    name_or_id="ivysaur", 
+    level=100, 
+    moves=["bullet-seed"], 
+    gender="male", 
+    stats_actual=[231, 67, 186, 83, 80, 200]
+)
+
+misty = pb.Trainer('Misty', [starmie, ivysaur])
 
 battle = pb.Battle(ash, misty)
 battle.start()
@@ -101,7 +109,10 @@ def dmg_calc_atk(atk, opp, move, powmod):
     #   these include weather, burn, stab, and type effectiveness
     s2 = move.power
     # step 3: calc stat matchup
-    if move.category == 2:
+    if move.category == 1:
+        # status effect so no damage done
+        return [0, 0, 0, 0, 0, 0, 0]
+    elif move.category == 2:
         s3 = (atk.stats_actual[1]*2 / opp.stats_actual[2])      # need to *2 here cuz div by 2 in pokemon creation
     elif move.category == 3:
         s3 = (atk.stats_actual[3]*2 / opp.stats_actual[4])      # need to *2 here cuz div by 2 in pokemon creation
@@ -156,22 +167,30 @@ while not battle.get_winner():
     battle_txt = battle.get_all_text()
 
     # TODO implement a should_switch function
+
+    #faster = pikachu.stats_actual[5] > misty.current_poke.stats_actual[5]
     
-    action_selection(pikachu, starmie)
-    if not starmie.nv_status:
+    action_selection(pikachu, misty.current_poke)
+    if not misty.current_poke.nv_status:
         battle.turn(t1_turn=['move', 'thunder-wave'], t2_turn=['move', 'bullet-seed'])
+        used_move = pikachu.moves[3]
     # TODO implement a calc probable damage function
-    elif get_cur_hp(starmie) < 16.001:
+    elif misty.current_poke.cur_hp < dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[1], 1)[4]:
         battle.turn(t1_turn=['move', 'quick-attack'], t2_turn=['move', 'bullet-seed'])
+        used_move = pikachu.moves[1]
     # TODO implement a pick attack move function based on power and type effectiveness
     else:
-        battle.turn(t1_turn=['move', 'quick-attack'], t2_turn=['move', 'bullet-seed'])
+        m0 = dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[0], 1)[3]
+        m2 = dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[2], 1)[3]
+
+        if m0 > m2:
+            battle.turn(t1_turn=['move', 'thunderbolt'], t2_turn=['move', 'bullet-seed'])
+            used_move = pikachu.moves[0]
+        else:
+            battle.turn(t1_turn=['move', 'iron-tail'], t2_turn=['move', 'bullet-seed'])
+            used_move = pikachu.moves[2]
 
 
-    #print(effectiveness(pikachu.moves[2], starmie))
-    base = dmg_calc_atk(pikachu, starmie, pikachu.moves[1], 1) 
-    dmgMin, dmgMax = base[0], base[6]
-    print(f"Range: ({dmgMin}, {dmgMax})")
 
     for i in range(mark, len(battle_txt)):
         if "Turn" in battle_txt[i]:
@@ -184,7 +203,12 @@ while not battle.get_winner():
             print(battle_txt[i])
         mark = i + 1
             
-    #print(starmie.stats_actual[5])
-    print(f"\nStarmie HP: {starmie.cur_hp} ({get_cur_hp(starmie):.2f}%)")
+    #print(effectiveness(pikachu.moves[2], misty.current_poke))
+    base = dmg_calc_atk(pikachu, misty.current_poke, used_move, 1) 
+    dmgMin, dmgMax = base[0], base[6]
+    print(f"Range: ({dmgMin}, {dmgMax})")
+
+    #print(misty.current_poke.stats_actual[5])
+    print(f"\n{misty.current_poke.name} HP: {misty.current_poke.cur_hp} ({get_cur_hp(misty.current_poke):.2f}%)")
     print(f"Pikachu HP: {pikachu.cur_hp} ({get_cur_hp(pikachu):.2f}%)")
 
