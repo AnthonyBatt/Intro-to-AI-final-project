@@ -41,6 +41,8 @@ pikachu = pb.Pokemon(
     gender="male",                                  # its gender
     stats_actual=[311, 73, 96, 68, 116, 216]        # its stats
 )
+print(type(pikachu.moves[0].name))
+print(pikachu.moves[0].name)
 
 ash = pb.Trainer('Ash', [pikachu])
 
@@ -59,6 +61,12 @@ ivysaur = pb.Pokemon(
     gender="male", 
     stats_actual=[231, 67, 186, 83, 80, 200]
 )
+print(type(ivysaur.moves[0].name))
+print(ivysaur.moves[0].name)
+print(ivysaur.moves[0].ef_id)
+print(ivysaur.moves[0].md)
+print(ivysaur.moves[0].ef_amount)
+print(ivysaur.moves[0].ef_stat)
 
 misty = pb.Trainer('Misty', [starmie, ivysaur])
 
@@ -79,35 +87,75 @@ print(f"Pikachu MAX HP: {pikachu.cur_hp}\n")
 def get_cur_hp(pokemon):
     return 100*int(pokemon.cur_hp)/pokemon.stats_actual[0]
 
-# TODO calc supereffective
+# returns the effectiveness multiplier
 def effectiveness(move, target):
     eff_list = eff_dict[move.type]
     ret = 1
 
     for t in target.types:
-        ret *= float(eff_list[type_enum[t]])
+        if t: ret *= float(eff_list[type_enum[t]])
 
     return ret
 
-# TODO need to make a separate calculator for other attributes (i.e. burn and weather)
+# calculates following factors:
+#   completed:  burn, weather, flash fire
+#   not yet:    
+#   might not:  targets
+#   can't:      screens
+def premod_calc(move, atk, env):
+    mod = 1
+    # Flash Fire
+    if atk.has_ability("flash-fire") and atk.ability_activated and move.type == "fire":
+        mod *= 1.5
+    
+    # weather
+    if move.name == "solar-beam" and (env.weather != 1 or env.weather != 0): # sun; clear
+        mod *= .5
+    elif env.weather == 2: # rain
+        if move.type == 'water': mod*=1.5
+        elif move.type == 'fire': mod*=.5
+    elif env.weather == 1: #sun
+        if move.type == 'fire': mod*=1.5
+        elif move.type == 'water': mod*=.5
+
+    # burn
+    if atk.nv_status == 1 and not atk.has_ability("guts") and move.category == 2: # burn; physical
+        mod *= .5
+
+    return mod
+
+# calculates following factors:
+#   completed:  stab, effectiveness, filter, solid-rock
+#   not yet:    
+#   might not:  items, berries
+#   can't:      me first
 def postmod_calc(move, atk, opp):
     mod = 1
+
+    # type chart
+    mod *= effectiveness(move, opp)
+    
+    # Tinted Lens
+    if mod < 1 and atk.has_ability("tinted-lens"):
+       mod *= 2
+    elif mod > 1 and not atk.has_ability("mold-breaker") and (opp.has_ability("filter") or opp.has_ability("solid-rock")):
+       mod *= .75
+    
     # STAB
     if move.type in atk.types:
         mod *= 1.5
-    # type chart
-    mod *= effectiveness(move, opp)
     
     return mod
 
 # TODO may need to implement edge case checks for weird move
 # returns a best and worst case estimate of damage done to opponent
-def dmg_calc_atk(atk, opp, move, powmod):
+def dmg_calc_atk(atk, opp, move, env):
     # step 1: calc level effectiveness
     s1 = (2*atk.level)/5 + 2
     # step 2: get move power and modifiers of said power
     #   these include weather, burn, stab, and type effectiveness
     s2 = move.power
+    #if move.ef_id == 10: s2 *= 3 # could hit 2-5 times, but most likely is 3
     # step 3: calc stat matchup
     if move.category == 1:
         # status effect so no damage done
@@ -117,7 +165,7 @@ def dmg_calc_atk(atk, opp, move, powmod):
     elif move.category == 3:
         s3 = (atk.stats_actual[3]*2 / opp.stats_actual[4])      # need to *2 here cuz div by 2 in pokemon creation
     # step 4: return base damage, let receiving function d multipliers
-    base = ((s1*s2*s3)/50 + 2) * postmod_calc(move, atk, opp) + 2
+    base = (((s1*s2*s3)/50)*premod_calc(move, atk, env) + 2) * postmod_calc(move, atk, opp) + 2
 
     #        worst      poor    pessimist   avg      optimist    good      best
     return [base*.85, base*.88, base*.91, base*.925, base*.94, base*.97, base*1.0]
@@ -165,6 +213,7 @@ def action_selection(poke1, poke2):
 
 while not battle.get_winner():
     battle_txt = battle.get_all_text()
+    bf = battle.battlefield
 
     # TODO implement a should_switch function
 
@@ -174,14 +223,13 @@ while not battle.get_winner():
     if not misty.current_poke.nv_status:
         battle.turn(t1_turn=['move', 'thunder-wave'], t2_turn=['move', 'bullet-seed'])
         used_move = pikachu.moves[3]
-    # TODO implement a calc probable damage function
-    elif misty.current_poke.cur_hp < dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[1], 1)[4]:
+    elif misty.current_poke.cur_hp < dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[1], bf)[4]:
         battle.turn(t1_turn=['move', 'quick-attack'], t2_turn=['move', 'bullet-seed'])
         used_move = pikachu.moves[1]
     # TODO implement a pick attack move function based on power and type effectiveness
     else:
-        m0 = dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[0], 1)[3]
-        m2 = dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[2], 1)[3]
+        m0 = dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[0], bf)[3]
+        m2 = dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[2], bf)[3]
 
         if m0 > m2:
             battle.turn(t1_turn=['move', 'thunderbolt'], t2_turn=['move', 'bullet-seed'])
@@ -204,7 +252,9 @@ while not battle.get_winner():
         mark = i + 1
             
     #print(effectiveness(pikachu.moves[2], misty.current_poke))
-    base = dmg_calc_atk(pikachu, misty.current_poke, used_move, 1) 
+    base = dmg_calc_atk(pikachu, misty.current_poke, used_move, bf)
+    used_move = misty.current_poke.moves[0]
+    base = dmg_calc_atk(misty.current_poke, pikachu, used_move, bf) 
     dmgMin, dmgMax = base[0], base[6]
     print(f"Range: ({dmgMin}, {dmgMax})")
 
