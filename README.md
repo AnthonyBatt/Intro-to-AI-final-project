@@ -24,3 +24,9 @@ to run on student machines first type this command:
 	- made the first 2 gym leader trainers
 	- further generalized the battle demo, less values are hard coded now
 	- advanced the AI to pick the move that will do the most damage to opposing pokemon
+
+11/8:
+	- finished damage calc edge cases
+
+11/13:
+	- split up the test.py script into separate files and in doing so fully generalized the project up to this point

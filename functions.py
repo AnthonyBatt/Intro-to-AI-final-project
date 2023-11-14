@@ -1,101 +1,84 @@
 import poke_battle_sim as pb
 import csv
 
-# process type chart into a dictionary
-eff_dict = dict()
-type_enum = {
-    "normal"    : 0,
-    "fire"      : 1,
-    "water"     : 2,
-    "electric"  : 3,
-    "grass"     : 4,
-    "ice"       : 5,
-    "fighting"  : 6,
-    "poison"    : 7,
-    "ground"    : 8,
-    "flying"    : 9,
-    "psychic"   : 10,
-    "bug"       : 11,
-    "rock"      : 12,
-    "ghost"     : 13,
-    "dragon"    : 14,
-    "dark"      : 15,
-    "steel"     : 16
-}
 
-for r in csv.reader(open('data/type_effectiveness.csv')):
-    eff_dict[r[0]] = r[1:]
-
-#for k, v in eff_dict.items(): print(k, v)
-
-# Pokemon number 1 on team number 1
-pikachu = pb.Pokemon(
-    name_or_id="pikachu",                           # the pokemon 
-    level=100,                                      # its level
-    moves=[                                         # its moveset 
-        "thunderbolt",
-        "quick-attack",
-        "iron-tail",
-        "thunder-wave"
-    ],
-    gender="male",                                  # its gender
-    stats_actual=[311, 73, 96, 68, 116, 216]        # its stats
-)
-print(type(pikachu.moves[0].name))
-print(pikachu.moves[0].name)
-
-ash = pb.Trainer('Ash', [pikachu])
-
-starmie = pb.Pokemon(
-    name_or_id="bulbasaur", 
-    level=100, 
-    moves=["bullet-seed"], 
-    gender="male", 
-    stats_actual=[144, 67, 134, 83, 166, 300]
-)
-
-ivysaur = pb.Pokemon(
-    name_or_id="ivysaur", 
-    level=100, 
-    moves=["bullet-seed"], 
-    gender="male", 
-    stats_actual=[231, 67, 186, 83, 80, 200]
-)
-print(type(ivysaur.moves[0].name))
-print(ivysaur.moves[0].name)
-print(ivysaur.moves[0].ef_id)
-print(ivysaur.moves[0].md)
-print(ivysaur.moves[0].ef_amount)
-print(ivysaur.moves[0].ef_stat)
-
-misty = pb.Trainer('Misty', [starmie, ivysaur])
-
-battle = pb.Battle(ash, misty)
-battle.start()
-
-mark = 0
-flagmat = 0     # formattig flag
-
-print(f"Starmie MAX HP: {starmie.cur_hp}")
-print(f"Pikachu MAX HP: {pikachu.cur_hp}\n")
-
-# TODO implement the opponent's pokemon's stat guessing/calculating function
-#   do it for each of their pokemon and do something like scan the output text for 'sent out' to look for
-#   new pokemon to keep track of
+############################## BEGIN MISCELLANEOUS
 
 # returns the given pokemon's hp as a percentage of their max health
 def get_cur_hp(pokemon):
     return 100*int(pokemon.cur_hp)/pokemon.stats_actual[0]
 
+# process type chart into a dictionary
 # returns the effectiveness multiplier
 def effectiveness(move, target):
-    eff_list = eff_dict[move.type]
-    ret = 1
+    # setting up the type chart 
+    eff_dict = dict()
+    type_enum = {
+        "normal"    : 0,
+        "fire"      : 1,
+        "water"     : 2,
+        "electric"  : 3,
+        "grass"     : 4,
+        "ice"       : 5,
+        "fighting"  : 6,
+        "poison"    : 7,
+        "ground"    : 8,
+        "flying"    : 9,
+        "psychic"   : 10,
+        "bug"       : 11,
+        "rock"      : 12,
+        "ghost"     : 13,
+        "dragon"    : 14,
+        "dark"      : 15,
+        "steel"     : 16
+    }
+    for r in csv.reader(open('data/type_effectiveness.csv')):
+        eff_dict[r[0]] = r[1:]
 
+    # get the list of type relations for the type of the attacking move
+    eff_list = eff_dict[move.type]
+    # base multiplier is 1
+    ret = 1
+    # add in the effectiveness multipliers of the target pokemon's type(s)
     for t in target.types:
         if t: ret *= float(eff_list[type_enum[t]])
 
     return ret
+
+############################## END MISCELLANEOUS
+
+
+############################## START PRINT FUNCTIONS
+
+def print_battle_txt(battle_txt, mark, flagmat):
+    for i in range(mark, len(battle_txt)):
+        if "Turn" in battle_txt[i]:
+            flagmat = 1
+            print(battle_txt[i])
+        elif flagmat:
+            print(f"    {battle_txt[i]}")
+        else:
+            print(battle_txt[i])
+        mark = i + 1
+
+    print()
+
+    return mark, flagmat
+
+def print_dmg_range(p1, p2, used_move, bf):
+    base = dmg_calc(p1, p2, used_move, bf)
+    dmgMin, dmgMax = base[0], base[6]
+    print(f"{p1.name} --> {p2.name} | Damage Range: ({dmgMin}, {dmgMax})")
+
+def print_poke_health(p1, p2):
+    print(f"{p1.name} HP: {p1.cur_hp} ({get_cur_hp(p1):.2f}%)")
+    print(f"{p2.name} HP: {p2.cur_hp} ({get_cur_hp(p2):.2f}%)")
+    print()
+
+############################## END PRINT FUNCTIONS
+
+
+############################## BEGIN DAMAGE CALCULATOR
 
 # calculates following factors:
 #   completed:  burn, weather, flash fire
@@ -149,7 +132,7 @@ def postmod_calc(move, atk, opp):
 
 # TODO may need to implement edge case checks for weird move
 # returns a best and worst case estimate of damage done to opponent
-def dmg_calc_atk(atk, opp, move, env):
+def dmg_calc(atk, opp, move, env):
     # step 1: calc level effectiveness
     s1 = (2*atk.level)/5 + 2
     # step 2: get move power and modifiers of said power
@@ -169,6 +152,11 @@ def dmg_calc_atk(atk, opp, move, env):
 
     #        worst      poor    pessimist   avg      optimist    good      best
     return [base*.85, base*.88, base*.91, base*.925, base*.94, base*.97, base*1.0]
+
+############################## END DAMAGE CALCULATOR
+
+
+############################## BEGIN AI LOGIC
 
 def action_selection(poke1, poke2):
     '''
@@ -211,54 +199,10 @@ def action_selection(poke1, poke2):
 
     #return action, obj
 
-while not battle.get_winner():
-    battle_txt = battle.get_all_text()
-    bf = battle.battlefield
+# TODO implement a move_selection function
+# TODO implement a shold_switch function
+# TODO implement the opponent's pokemon's stat guessing/calculating function
+#   do it for each of their pokemon and do something like scan the output text for 'sent out' to look for
+#   new pokemon to keep track of
 
-    # TODO implement a should_switch function
-
-    #faster = pikachu.stats_actual[5] > misty.current_poke.stats_actual[5]
-    
-    action_selection(pikachu, misty.current_poke)
-    if not misty.current_poke.nv_status:
-        battle.turn(t1_turn=['move', 'thunder-wave'], t2_turn=['move', 'bullet-seed'])
-        used_move = pikachu.moves[3]
-    elif misty.current_poke.cur_hp < dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[1], bf)[4]:
-        battle.turn(t1_turn=['move', 'quick-attack'], t2_turn=['move', 'bullet-seed'])
-        used_move = pikachu.moves[1]
-    # TODO implement a pick attack move function based on power and type effectiveness
-    else:
-        m0 = dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[0], bf)[3]
-        m2 = dmg_calc_atk(pikachu, misty.current_poke, pikachu.moves[2], bf)[3]
-
-        if m0 > m2:
-            battle.turn(t1_turn=['move', 'thunderbolt'], t2_turn=['move', 'bullet-seed'])
-            used_move = pikachu.moves[0]
-        else:
-            battle.turn(t1_turn=['move', 'iron-tail'], t2_turn=['move', 'bullet-seed'])
-            used_move = pikachu.moves[2]
-
-
-
-    for i in range(mark, len(battle_txt)):
-        if "Turn" in battle_txt[i]:
-            flagmat = 1
-            print()
-            print(battle_txt[i])
-        elif flagmat:
-            print(f"    {battle_txt[i]}")
-        else:
-            print(battle_txt[i])
-        mark = i + 1
-            
-    #print(effectiveness(pikachu.moves[2], misty.current_poke))
-    base = dmg_calc_atk(pikachu, misty.current_poke, used_move, bf)
-    used_move = misty.current_poke.moves[0]
-    base = dmg_calc_atk(misty.current_poke, pikachu, used_move, bf) 
-    dmgMin, dmgMax = base[0], base[6]
-    print(f"Range: ({dmgMin}, {dmgMax})")
-
-    #print(misty.current_poke.stats_actual[5])
-    print(f"\n{misty.current_poke.name} HP: {misty.current_poke.cur_hp} ({get_cur_hp(misty.current_poke):.2f}%)")
-    print(f"Pikachu HP: {pikachu.cur_hp} ({get_cur_hp(pikachu):.2f}%)")
-
+############################## END AI LOGIC
