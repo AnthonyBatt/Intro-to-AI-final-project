@@ -33,7 +33,7 @@ def Misty():
         level=100, 
         moves=["bullet-seed"], 
         gender="male", 
-        stats_actual=[144, 67, 134, 83, 166, 300]
+        stats_actual=[100, 67, 134, 83, 166, 300]
     )
 
     ivysaur = pb.Pokemon(

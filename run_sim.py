@@ -23,8 +23,9 @@ while not battle.get_winner():
     p2 = trainer2.current_poke
 
     print_poke_health(p1, p2)
-    
-    action_selection(p1, p2)
+
+    '''
+    action_selection(p1, p2, env)
     if not p2.nv_status:
         battle.turn(t1_turn=['move', 'thunder-wave'], t2_turn=['move', 'bullet-seed'])
         used_move = p1.moves[3]
@@ -42,12 +43,18 @@ while not battle.get_winner():
         else:
             battle.turn(t1_turn=['move', 'iron-tail'], t2_turn=['move', 'bullet-seed'])
             used_move = p1.moves[2]
+    '''
+
+    act1 = action_selection(p1, p2, bf)
+    act2 = action_selection(p2, p1, bf)
+
+    battle.turn(t1_turn=act1, t2_turn=act2)
 
     mark, flagmat = print_battle_txt(battle_txt, mark, flagmat)
 
-    print_dmg_range(p1, p2, used_move, bf)
-    used_move = p2.moves[0]
-    print_dmg_range(p2, p1, used_move, bf)
+    print_dmg_range(p1, p2, act1[1], bf)
+    #used_move = p2.moves[0]
+    print_dmg_range(p2, p1, act2[1], bf)
     print()
 
 
