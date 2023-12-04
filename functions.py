@@ -1,4 +1,6 @@
 import poke_battle_sim as pb
+import challengers as ch
+import gyms
 import csv
 
 
@@ -19,7 +21,8 @@ def most_damage(atk, opp, env):
 
 # process type chart into a dictionary
 # returns the effectiveness multiplier
-def effectiveness(move, target):
+def effectiveness(mtype, target):
+    if not mtype: return -1
     # setting up the type chart 
     eff_dict = dict()
     type_enum = {
@@ -45,7 +48,7 @@ def effectiveness(move, target):
         eff_dict[r[0]] = r[1:]
 
     # get the list of type relations for the type of the attacking move
-    eff_list = eff_dict[move.type]
+    eff_list = eff_dict[mtype]
     # base multiplier is 1
     ret = 1
     # add in the effectiveness multipliers of the target pokemon's type(s)
@@ -128,7 +131,7 @@ def postmod_calc(move, atk, opp):
     mod = 1
 
     # type chart
-    mod *= effectiveness(move, opp)
+    mod *= effectiveness(move.type, opp)
     
     # Tinted Lens
     if mod < 1 and atk.has_ability("tinted-lens"):
@@ -160,7 +163,11 @@ def dmg_calc(atk, opp, move, env):
     elif move.category == 3:
         s3 = (atk.stats_actual[3]*2 / opp.stats_actual[4])      # need to *2 here cuz div by 2 in pokemon creation
     # step 4: return base damage, let receiving function d multipliers
-    base = (((s1*s2*s3)/50)*premod_calc(move, atk, env) + 2) * postmod_calc(move, atk, opp) + 2
+    base1 = (((s1*s2*s3)/50)*premod_calc(move, atk, env) + 2) * postmod_calc(move, atk, opp)
+    if base1: 
+        base = base1 + 2
+    else:
+        base = base1
 
     #        worst      poor    pessimist   avg      optimist    good      best
     return [base*.85, base*.88, base*.91, base*.925, base*.94, base*.97, base*1.0]
@@ -172,7 +179,7 @@ def dmg_calc(atk, opp, move, env):
 
 # TODO make a swapping function and pass it into the CPU trainer's creation
 # returns the action item to be passed into the turn thing
-def action_selection(my, opp, env):
+def action_selection(my, opp, env, me):
     # check who is quicker
     faster = my.stats_actual[5] > opp.stats_actual[5]
     # if opp quicker (or speed tie) 
@@ -185,14 +192,15 @@ def action_selection(my, opp, env):
         # if yes see if there is a good swap
         if ohko:
             # return if a swap should occur, if so internally change the trainer's current_poke
-            swap = should_swap() # TODO
+            swap = should_swap(my, opp, env, me) # TODO
             if swap:
+                perform_swap(swap, me)
                 return ['other', 'switch']
             # if no good swap check if we have a priority move
             else:
                 # if yes use it
                 for move in my.moves:
-                    if move.prio:
+                    if move.prio and dmg_calc(my, opp, move, env)[4]:
                         return ['move', move.name]
                 # else just stay in and suffer
 
@@ -203,13 +211,13 @@ def action_selection(my, opp, env):
                     # if yes use it
                     return ['move', move.name]
         # otherwsie just proceed normally
-        return move_selection(my, opp, env)
+        return move_selection(my, opp, env, me)
     # else (we are faster)
     else:
-        return move_selection(my, opp, env)
+        return move_selection(my, opp, env, me)
 
 # general case logic for what attack to use, may result in a swap if no good attacks available
-def move_selection(my, opp, env):
+def move_selection(my, opp, env, me):
     # TODO MAYBE: if they can't really hurt us, set up if possible # TODO figure out how tell which moves setup
 
     # check if I can one shot
@@ -277,8 +285,9 @@ def move_selection(my, opp, env):
                     return ['move', move.name]
             
     # else check for if there is a less valuable/better matchup pokemon to throw out right now
-    swap = should_swap() # TODO
+    swap = should_swap(my, opp, env, me) # TODO
     if swap:
+        perform_swap(swap, me)
         return ['other', 'switch']
 
     #TODO MAYBE: else see if we have any moves that have secondary effects which would produce something good
@@ -287,12 +296,46 @@ def move_selection(my, opp, env):
     return ['move', most_damage(my, opp, env).name]
 
 # TODO implement a should_switch function
-def should_swap():
-    # check effectiveness of opp on us and us on opp
-    # check effectiveness of all bench poke on opp and opp on bench poke
+def should_swap(my, opp, env, me):
+    # check effectiveness of our STAB on opp
+    curr_off = max([ effectiveness(t, opp) for t in my.types ])
+    # and opp's STAB on us
 
-    return False
-    # return if a swap occurred or not
+    curr_def = max([ effectiveness(t, my) for t in opp.types ])
+    pote_off = -1  # min is 0
+    pote_def = 100 # max is 4
+    pote_switch = None
+
+    for poke in me.poke_list:
+        if not poke.is_alive: continue
+        # check effectiveness of all bench poke's STAB on opp
+        chek_off = max([ effectiveness(t, opp) for t in poke.types ])
+        # check effectiveness of opp's STAB on all bench poke
+        chek_def = max([ effectiveness(t, poke) for t in opp.types ])
+
+        # check for finding which bench poke has the best matchup
+        if chek_off >= pote_off and chek_def <= pote_def:
+            pote_off = chek_off
+            pote_def = chek_def
+            pote_switch = poke
+
+    # check if the best bench matchup is better than curr matchup
+    #   Note: more stringent check here because on the swap will be vulnerable
+    if pote_off >= curr_off and pote_def < curr_def:
+        # switch in the better matchup
+        return pote_switch
+    else:
+        # don't switch
+        return None
+
+# TODO find a way to use this also when a pokemon faints
+def perform_swap(poke, trainer):
+    trainer.current_poke = poke
+
+# place holder for interfacing with lib
+def selection_func(self):
+    mfw = "Yippee"
+
 # TODO MAYBE:   implement the opponent's pokemon's stat guessing/calculating function
 #               do it for each of their pokemon and do something like scan the output 
 #               text for 'sent out' to look for new pokemon to keep track of
@@ -301,4 +344,44 @@ def should_swap():
 
 
 ############################## BEGIN UI
+
+def own_team():
+    print("Which challenger would you like to play as:")
+    print("\t1. Anthony (Me)\n\t2. Jerrick\n\t3. Thomas")
+    inp = int(input("Enter the number of the trainer you want: "))
+    print()
+
+    if inp == 1:
+        return ch.Anthony()
+    elif inp == 2:
+        return ch.Jerrick()
+    # TODO make lohmann
+    elif inp == 3:
+        return ch.Thomas()
+
+    # secret challengers
+    elif inp == 98:
+        return ch.Ash()
+    elif inp == 99:
+        return ch.Misty()
+    else:
+        print("that is an invalid trainer number, please pick again")
+        return own_team()
+
+def opp_team():
+    print("Which leader would you like to play against:")
+    print("\t1. Bug\n\t2. Ice\n\t3. Electric")
+    inp = int(input("Enter the number of the leader you want: "))
+    print()
+
+    if inp == 1:
+        return gyms.Gym1()
+    elif inp == 2:
+        return gyms.Gym2()
+    elif inp == 3:
+        return gyms.Gym3()
+    else:
+        print("that is an invalid leader number, please pick again")
+        return opp_team()
+
 ############################## END UI
