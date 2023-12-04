@@ -156,3 +156,52 @@ def Jerrick():
     return jerrick
 
 ############################## END TRAINER ANTHONY
+
+
+############################## START TRAINER THOMAS
+
+def Thomas():
+    floatzel = pb.Pokemon(
+        name_or_id="floatzel", 
+        level=100, 
+        moves=[
+            "waterfall",
+            "ice-punch",
+            "crunch",
+            "brick-break"
+            ], 
+        gender="male", 
+        stats_actual=[312, 154, 146, 93, 136, 361]
+    )
+
+    jolteon = pb.Pokemon(
+        name_or_id="jolteon", 
+        level=100, 
+        moves=[
+            "thunderbolt",
+            "shadow-ball",
+            "signal-beam",
+            "thunder-wave"
+            ], 
+        gender="male", 
+        stats_actual=[272, 75, 156, 160, 226, 394]
+    )
+
+    infernape = pb.Pokemon(
+        name_or_id="infernape", 
+        level=100, 
+        moves=[
+            "close-combat",
+            "flamethrower",
+            "mach-punch",
+            "will-o-wisp"
+            ], 
+        gender="male", 
+        stats_actual=[293, 130, 178, 169, 160, 300]
+    )
+
+    thomas = pb.Trainer('Thomas', [floatzel, jolteon, infernape], selection_func)
+
+    return thomas
+
+############################## END TRAINER THOMAS

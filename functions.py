@@ -347,7 +347,7 @@ def selection_func(self):
 
 def own_team():
     print("Which challenger would you like to play as:")
-    print("\t1. Anthony (Me)\n\t2. Jerrick\n\t3. Thomas")
+    print("\t1. Anthony (Me)\n\t2. Jerrick\n\t3. Thomas\n\t4. Gym Leader")
     inp = int(input("Enter the number of the trainer you want: "))
     print()
 
@@ -358,6 +358,9 @@ def own_team():
     # TODO make lohmann
     elif inp == 3:
         return ch.Thomas()
+    elif inp == 4:
+        print("A Gym Leader will play as the challenger")
+        return opp_team()
 
     # secret challengers
     elif inp == 98:
@@ -370,7 +373,7 @@ def own_team():
 
 def opp_team():
     print("Which leader would you like to play against:")
-    print("\t1. Bug\n\t2. Ice\n\t3. Electric")
+    print("\t1. Bug\n\t2. Ice\n\t3. Electric\n\t4. Challenger")
     inp = int(input("Enter the number of the leader you want: "))
     print()
 
@@ -380,6 +383,9 @@ def opp_team():
         return gyms.Gym2()
     elif inp == 3:
         return gyms.Gym3()
+    elif inp == 4:
+        print("A challenger will play as the Gym Leader")
+        return own_team()
     else:
         print("that is an invalid leader number, please pick again")
         return opp_team()

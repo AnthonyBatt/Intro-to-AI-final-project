@@ -99,7 +99,7 @@ def Gym3():
             "brick-break",
             "flamethrower",
             "thunderbolt",
-            "ice-punch"
+            "thunder-wave"
         ],
         gender="male",
         stats_actual=[291, 171, 153, 144, 206, 263]
